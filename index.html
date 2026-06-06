@@ -2,158 +2,195 @@
 <html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>荔景站 4月台實時到站</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>荔景站 4月台一頁看清版</title>
 <style>
-  body {
+  /* 鎖死全螢幕，絕對不允許捲動 */
+  html, body {
     background-color: #000000; 
     color: #ffffff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     margin: 0;
-    padding: 15px;
+    padding: 8px;
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    overflow: hidden; /* 拔掉捲動條 */
+  }
+
+  body {
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    box-sizing: border-box;
   }
+
+  /* 頂部時鐘欄 */
   .header-container {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
-    margin-bottom: 15px;
-    border-bottom: 1px solid #333333;
-    padding-bottom: 10px;
+    align-items: center;
+    height: 10vh; /* 佔一成高度 */
+    border-bottom: 1px solid #222222;
+    padding: 0 10px;
   }
   .header-title {
-    font-size: 1.8em;
+    font-size: 1.4em;
     color: #ffffff;
     font-weight: bold;
-    margin: 0;
   }
   .realtime-clock {
-    font-size: 2.2em;
+    font-size: 1.8em;
     font-weight: bold;
-    color: #00A650; /* 用綠色顯示時鐘，醒神啲 */
+    color: #00A650;
   }
-  /* 智能網格排版：手機打直單行，打橫雙行 */
+
+  /* 核心四格排版：利用 CSS Grid 填滿剩餘的 90vh 空間 */
   .container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 15px;
-    flex: 1;
-    overflow-y: auto;
+    gap: 8px;
+    height: 88vh; /* 佔接近九成高度 */
+    margin-top: 5px;
+    box-sizing: border-box;
   }
+
+  /* 📱 手機打橫放 (Landscape)：自動變成 2x2 四格 */
+  @media (orientation: landscape) {
+    .container {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+  }
+
+  /* 📱 手機打直放 (Portrait)：自動變成 1x4 四行 */
+  @media (orientation: portrait) {
+    .container {
+      grid-template-columns: 1fr;
+      grid-template-rows: repeat(4, 1fr);
+    }
+  }
+
   .direction {
     border: 2px solid #333333;
-    border-radius: 12px;
-    padding: 15px;
+    border-radius: 10px;
+    padding: 8px 12px;
     display: flex;
     flex-direction: column;
+    justify-content: space-between; /* 均勻拉開內部元件 */
+    box-sizing: border-box;
+    overflow: hidden;
   }
+
   .dest-title {
-    font-size: 1.6em;
+    font-size: 1.3em;
     font-weight: bold;
     text-align: center;
-    margin-bottom: 15px;
-    border-bottom: 1px solid #333333;
-    padding-bottom: 10px;
+    margin: 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #222222;
   }
+
+  .train-list {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    gap: 4px; /* 緊湊間距 */
+  }
+
   .train {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    height: 40%; /* 平分剩餘空間給兩班車 */
   }
+
   .train-left {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-    align-items: flex-start;
+    align-items: center;
+    gap: 8px;
   }
+
   .platform {
-    font-size: 0.9em;
+    font-size: 0.75em;
     color: #eeeeee;
-    background-color: #222222;
-    padding: 4px 10px;
-    border-radius: 6px;
+    background-color: #111111;
+    padding: 2px 6px;
+    border-radius: 4px;
     white-space: nowrap;
   }
+
   .arrival-time {
-    font-size: 1em;
-    color: #aaaaaa;
+    font-size: 0.85em;
+    color: #888888;
   }
+
   .time {
-    font-size: 2.2em;
+    font-size: 1.6em;
     font-weight: bold;
   }
+
   .min {
     font-size: 0.5em;
-    color: #aaaaaa;
+    color: #888888;
   }
+
   .arriving {
     color: #FF3B30; 
     animation: blink 1.5s infinite; 
   }
+
   @keyframes blink {
     50% { opacity: 0.4; }
   }
+
   .update-time {
-    text-align: right;
-    color: #666666;
-    font-size: 1em;
-    margin-top: 10px;
+    position: absolute;
+    bottom: 2px;
+    right: 10px;
+    color: #444444;
+    font-size: 0.7em;
   }
 </style>
 </head>
 <body>
 
 <div class="header-container">
-  <div class="header-title">荔景站 (LAK) 實時到站</div>
+  <div class="header-title">荔景 (LAK)</div>
   <div class="realtime-clock" id="currentClock">--:--:--</div>
 </div>
 
 <div class="container">
   <div class="direction" style="border-color: #E2231A;">
     <div class="dest-title" id="twl-up-dest" style="color: #E2231A;">荃灣綫 往荃灣</div>
-    <div id="twl-up-trains"></div>
+    <div class="train-list" id="twl-up-trains"></div>
   </div>
   
   <div class="direction" style="border-color: #E2231A;">
     <div class="dest-title" id="twl-down-dest" style="color: #E2231A;">荃灣綫 往中環</div>
-    <div id="twl-down-trains"></div>
+    <div class="train-list" id="twl-down-trains"></div>
   </div>
 
   <div class="direction" style="border-color: #F6903D;">
     <div class="dest-title" id="tcl-up-dest" style="color: #F6903D;">東涌綫 往東涌</div>
-    <div id="tcl-up-trains"></div>
+    <div class="train-list" id="tcl-up-trains"></div>
   </div>
 
   <div class="direction" style="border-color: #F6903D;">
     <div class="dest-title" id="tcl-down-dest" style="color: #F6903D;">東涌綫 往香港</div>
-    <div id="tcl-down-trains"></div>
+    <div class="train-list" id="tcl-down-trains"></div>
   </div>
 </div>
 
 <div class="update-time" id="lastUpdate">最後更新: ---</div>
 
 <script>
-  const destMap = {
-    'TWH': '荃灣',
-    'CEN': '中環',
-    'TUC': '東涌',
-    'HOK': '香港',
-    'TSY': '青衣', 
-    'ADM': '金鐘',
-    'LAK': '荔景'
-  };
+  const destMap = { 'TWH': '荃灣', 'CEN': '中環', 'TUC': '東涌', 'HOK': '香港', 'TSY': '青衣', 'ADM': '金鐘', 'LAK': '荔景' };
 
-  // 獨立運行嘅實時時鐘功能
   function updateClock() {
     const now = new Date();
     document.getElementById('currentClock').innerText = now.toLocaleTimeString('en-US', { hour12: false });
   }
-  setInterval(updateClock, 1000); // 每秒更新時鐘
-  updateClock(); // 網頁載入即時顯示
+  setInterval(updateClock, 1000);
+  updateClock();
 
   async function fetchMTRData() {
     try {
@@ -181,11 +218,9 @@
       }
       
       const now = new Date();
-      document.getElementById('lastUpdate').innerText = `最後更新: ${now.toLocaleTimeString('en-US', { hour12: false })}`;
-      
+      document.getElementById('lastUpdate').innerText = `更新: ${now.toLocaleTimeString('en-US', { hour12: false })}`;
     } catch (error) {
-      console.error(error);
-      document.getElementById('lastUpdate').innerText = '連線錯誤，正在自動重試...';
+      document.getElementById('lastUpdate').innerText = '連線錯誤...';
     }
   }
 
@@ -194,57 +229,51 @@
     const titleEl = document.getElementById(destId);
     
     if (!trains || trains.length === 0) {
-      container.innerHTML = '<div class="train" style="font-size:1.2em; color:#666;">沒有列車 / 已收車</div>';
+      container.innerHTML = '<div class="train" style="font-size:1em; color:#444; justify-content:center;">已收車 / 沒班次</div>';
       titleEl.innerText = `${lineName} 往${defaultDest}`;
       return;
     }
 
     const destCode = trains[0].dest;
     titleEl.innerText = `${lineName} 往${destMap[destCode] || destCode}`;
-    
     container.innerHTML = ''; 
     
-    trains.slice(0, 3).forEach(train => {
+    // 💡 關鍵：只選取頭 2 班車，確保不超出畫面高度
+    trains.slice(0, 2).forEach(train => {
       let ttbStr = train.ttb;
       let ttb = parseInt(ttbStr);
-      let exactTimeText = "--:--"; // 預設空時間
+      let exactTimeText = "--:--";
       
-      // 擷取具體到站時間 (例如將 "2026-06-06 18:30:00" 變成 "18:30")
       if (train.time && train.time.includes(" ")) {
-        let timePart = train.time.split(" ")[1]; // 抽出 "18:30:00"
-        exactTimeText = timePart.substring(0, 5); // 只取前 5 個字元 "18:30"
+        exactTimeText = train.time.split(" ")[1].substring(0, 5);
       }
 
-      // NaN 修復機制
       if (isNaN(ttb)) {
         if (train.time && train.time !== "0" && train.time !== "-") {
           let targetDate = new Date(train.time.replace(/-/g, '/')); 
           let diffMins = Math.floor((targetDate - new Date()) / 60000);
           ttb = diffMins > 0 ? diffMins : 0;
-        } else {
-          ttb = 0;
-        }
+        } else { ttb = 0; }
       }
       
       let timeText = '';
       let timeClass = 'time';
       
       if (ttb <= 1 || train.time === "0" || ttbStr === "") {
-        timeText = (ttb === 0 || train.time === "0") ? '正在進站' : '即將到達';
+        timeText = (ttb === 0 || train.time === "0") ? '進站中' : '即將到';
         timeClass = 'time arriving';
-        exactTimeText = "即將到達"; 
+        exactTimeText = "NOW"; 
       } else {
         timeText = ttb + '<span class="min"> 分鐘</span>';
       }
       
-      let platStr = train.plat ? `月台 ${train.plat}` : '未知';
+      let platStr = train.plat ? `月台 ${train.plat}` : '??';
       
-      // 排版加入 exactTimeText
       container.innerHTML += `
         <div class="train">
           <div class="train-left">
             <div class="platform" style="border: 1px solid ${color}">${platStr}</div>
-            <div class="arrival-time">預計 ${exactTimeText}</div>
+            <div class="arrival-time">${exactTimeText}</div>
           </div>
           <div class="${timeClass}">${timeText}</div>
         </div>
@@ -253,8 +282,7 @@
   }
 
   fetchMTRData();
-  setInterval(fetchMTRData, 20000); // 港鐵數據維持每 20 秒更新
-
+  setInterval(fetchMTRData, 20000);
 </script>
 </body>
 </html>
