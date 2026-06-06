@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>荔景站 4月台實時到站</title>
+<style>
+  body {
+    background-color: #000000; 
+    color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    box-sizing: border-box;
+  }
+  .header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #333333;
+    padding-bottom: 10px;
+  }
+  .header-title {
+    font-size: 1.8em;
+    color: #ffffff;
+    font-weight: bold;
+    margin: 0;
+  }
+  .realtime-clock {
+    font-size: 2.2em;
+    font-weight: bold;
+    color: #00A650; /* 用綠色顯示時鐘，醒神啲 */
+  }
+  /* 智能網格排版：手機打直單行，打橫雙行 */
+  .container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 15px;
+    flex: 1;
+    overflow-y: auto;
+  }
+  .direction {
+    border: 2px solid #333333;
+    border-radius: 12px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+  }
+  .dest-title {
+    font-size: 1.6em;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #333333;
+    padding-bottom: 10px;
+  }
+  .train {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .train-left {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+  }
+  .platform {
+    font-size: 0.9em;
+    color: #eeeeee;
+    background-color: #222222;
+    padding: 4px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  .arrival-time {
+    font-size: 1em;
+    color: #aaaaaa;
+  }
+  .time {
+    font-size: 2.2em;
+    font-weight: bold;
+  }
+  .min {
+    font-size: 0.5em;
+    color: #aaaaaa;
+  }
+  .arriving {
+    color: #FF3B30; 
+    animation: blink 1.5s infinite; 
+  }
+  @keyframes blink {
+    50% { opacity: 0.4; }
+  }
+  .update-time {
+    text-align: right;
+    color: #666666;
+    font-size: 1em;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header-container">
+  <div class="header-title">荔景站 (LAK) 實時到站</div>
+  <div class="realtime-clock" id="currentClock">--:--:--</div>
+</div>
+
+<div class="container">
+  <div class="direction" style="border-color: #E2231A;">
+    <div class="dest-title" id="twl-up-dest" style="color: #E2231A;">荃灣綫 往荃灣</div>
+    <div id="twl-up-trains"></div>
+  </div>
+  
+  <div class="direction" style="border-color: #E2231A;">
+    <div class="dest-title" id="twl-down-dest" style="color: #E2231A;">荃灣綫 往中環</div>
+    <div id="twl-down-trains"></div>
+  </div>
+
+  <div class="direction" style="border-color: #F6903D;">
+    <div class="dest-title" id="tcl-up-dest" style="color: #F6903D;">東涌綫 往東涌</div>
+    <div id="tcl-up-trains"></div>
+  </div>
+
+  <div class="direction" style="border-color: #F6903D;">
+    <div class="dest-title" id="tcl-down-dest" style="color: #F6903D;">東涌綫 往香港</div>
+    <div id="tcl-down-trains"></div>
+  </div>
+</div>
+
+<div class="update-time" id="lastUpdate">最後更新: ---</div>
+
+<script>
+  const destMap = {
+    'TWH': '荃灣',
+    'CEN': '中環',
+    'TUC': '東涌',
+    'HOK': '香港',
+    'TSY': '青衣', 
+    'ADM': '金鐘',
+    'LAK': '荔景'
+  };
+
+  // 獨立運行嘅實時時鐘功能
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('currentClock').innerText = now.toLocaleTimeString('en-US', { hour12: false });
+  }
+  setInterval(updateClock, 1000); // 每秒更新時鐘
+  updateClock(); // 網頁載入即時顯示
+
+  async function fetchMTRData() {
+    try {
+      const [twlRes, tclRes] = await Promise.all([
+        fetch('https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TWL&sta=LAK').catch(()=>null),
+        fetch('https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=TCL&sta=LAK').catch(()=>null)
+      ]);
+
+      if (twlRes) {
+        const twlJson = await twlRes.json();
+        if (twlJson.status === 1) {
+          const data = twlJson.data['TWL-LAK'];
+          renderTrains('twl-up-trains', 'twl-up-dest', '荃灣綫', '荃灣', data?.UP, '#E2231A');
+          renderTrains('twl-down-trains', 'twl-down-dest', '荃灣綫', '中環', data?.DOWN, '#E2231A');
+        }
+      }
+
+      if (tclRes) {
+        const tclJson = await tclRes.json();
+        if (tclJson.status === 1) {
+          const data = tclJson.data['TCL-LAK'];
+          renderTrains('tcl-up-trains', 'tcl-up-dest', '東涌綫', '東涌', data?.UP, '#F6903D');
+          renderTrains('tcl-down-trains', 'tcl-down-dest', '東涌綫', '香港', data?.DOWN, '#F6903D');
+        }
+      }
+      
+      const now = new Date();
+      document.getElementById('lastUpdate').innerText = `最後更新: ${now.toLocaleTimeString('en-US', { hour12: false })}`;
+      
+    } catch (error) {
+      console.error(error);
+      document.getElementById('lastUpdate').innerText = '連線錯誤，正在自動重試...';
+    }
+  }
+
+  function renderTrains(containerId, destId, lineName, defaultDest, trains, color) {
+    const container = document.getElementById(containerId);
+    const titleEl = document.getElementById(destId);
+    
+    if (!trains || trains.length === 0) {
+      container.innerHTML = '<div class="train" style="font-size:1.2em; color:#666;">沒有列車 / 已收車</div>';
+      titleEl.innerText = `${lineName} 往${defaultDest}`;
+      return;
+    }
+
+    const destCode = trains[0].dest;
+    titleEl.innerText = `${lineName} 往${destMap[destCode] || destCode}`;
+    
+    container.innerHTML = ''; 
+    
+    trains.slice(0, 3).forEach(train => {
+      let ttbStr = train.ttb;
+      let ttb = parseInt(ttbStr);
+      let exactTimeText = "--:--"; // 預設空時間
+      
+      // 擷取具體到站時間 (例如將 "2026-06-06 18:30:00" 變成 "18:30")
+      if (train.time && train.time.includes(" ")) {
+        let timePart = train.time.split(" ")[1]; // 抽出 "18:30:00"
+        exactTimeText = timePart.substring(0, 5); // 只取前 5 個字元 "18:30"
+      }
+
+      // NaN 修復機制
+      if (isNaN(ttb)) {
+        if (train.time && train.time !== "0" && train.time !== "-") {
+          let targetDate = new Date(train.time.replace(/-/g, '/')); 
+          let diffMins = Math.floor((targetDate - new Date()) / 60000);
+          ttb = diffMins > 0 ? diffMins : 0;
+        } else {
+          ttb = 0;
+        }
+      }
+      
+      let timeText = '';
+      let timeClass = 'time';
+      
+      if (ttb <= 1 || train.time === "0" || ttbStr === "") {
+        timeText = (ttb === 0 || train.time === "0") ? '正在進站' : '即將到達';
+        timeClass = 'time arriving';
+        exactTimeText = "即將到達"; 
+      } else {
+        timeText = ttb + '<span class="min"> 分鐘</span>';
+      }
+      
+      let platStr = train.plat ? `月台 ${train.plat}` : '未知';
+      
+      // 排版加入 exactTimeText
+      container.innerHTML += `
+        <div class="train">
+          <div class="train-left">
+            <div class="platform" style="border: 1px solid ${color}">${platStr}</div>
+            <div class="arrival-time">預計 ${exactTimeText}</div>
+          </div>
+          <div class="${timeClass}">${timeText}</div>
+        </div>
+      `;
+    });
+  }
+
+  fetchMTRData();
+  setInterval(fetchMTRData, 20000); // 港鐵數據維持每 20 秒更新
+
+</script>
+</body>
+</html>
